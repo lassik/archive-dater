@@ -52,11 +52,28 @@ static char **string_vector_append(char **sv, char *s)
     return sv;
 }
 
+static char *iso_date_from_time(time_t t)
+{
+    char buf[16];
+    char *date;
+    struct tm *tm;
+    unsigned int y, m, d;
+
+    tm = gmtime(&t);
+    y = tm->tm_year + 1900;
+    m = tm->tm_mon + 1;
+    d = tm->tm_mday;
+    snprintf(buf, sizeof(buf), "%u-%02u-%02u", y, m, d);
+    if (!(date = strdup(buf))) {
+        panic_memory();
+    }
+    return date;
+}
+
 #define MAX_DATES 1024
-#define DATE_SIZE 16
 
 struct dateinfo {
-    char date[DATE_SIZE];
+    char *date;
     char **files;
 };
 
@@ -71,25 +88,38 @@ static int compare_dates(const void *a_void, const void *b_void)
     return strcmp(b->date, a->date);
 }
 
-static void date_add_file(const char *date, const char *file)
+static struct dateinfo *find_date(char *date)
+{
+    struct dateinfo key = { .date = date };
+    return bsearch(&key, dates, ndates, sizeof(*dates), compare_dates);
+}
+
+static struct dateinfo *alloc_date(char *date)
 {
     struct dateinfo *dateinfo;
-    char *file_copy;
 
     if (ndates >= MAX_DATES) {
         panic("too many dates");
     }
-    dateinfo = bsearch(date, dates, ndates, sizeof(*dates), compare_dates);
-    if (!dateinfo) {
-        dateinfo = &dates[ndates++];
-        snprintf(dateinfo->date, sizeof(dateinfo->date), "%s", date);
-        dateinfo->files = string_vector_new();
-        qsort(dates, ndates, sizeof(*dates), compare_dates);
+    dateinfo = &dates[ndates++];
+    dateinfo->date = date;
+    dateinfo->files = string_vector_new();
+    qsort(dates, ndates, sizeof(*dates), compare_dates);
+    return find_date(date);
+}
+
+static void date_add_file(char *date, const char *const_file)
+{
+    struct dateinfo *dateinfo;
+    char *file;
+
+    if (!(dateinfo = find_date(date))) {
+        dateinfo = alloc_date(date);
     }
-    if (!(file_copy = strdup(file))) {
+    if (!(file = strdup(const_file))) {
         panic_memory();
     }
-    dateinfo->files = string_vector_append(dateinfo->files, file_copy);
+    dateinfo->files = string_vector_append(dateinfo->files, file);
 }
 
 static void show_all_dates(void)
@@ -127,10 +157,6 @@ static void do_it(const char *filename)
 {
     struct archive *archive;
     struct archive_entry *entry;
-    struct tm *tm;
-    time_t t;
-    unsigned int y, m, d;
-    char date[DATE_SIZE];
 
     if (!(archive = archive_read_new())) {
         panic_memory();
@@ -140,13 +166,8 @@ static void do_it(const char *filename)
     check(archive_read_open_filename(archive, filename, 10240));
     while (check(archive_read_next_header(archive, &entry)) != ARCHIVE_EOF) {
         if (archive_entry_mtime_is_set(entry)) {
-            t = archive_entry_mtime(entry);
-            tm = gmtime(&t);
-            y = tm->tm_year + 1900;
-            m = tm->tm_mon + 1;
-            d = tm->tm_mday;
-            snprintf(date, sizeof(date), "%u-%02u-%02u", y, m, d);
-            date_add_file(date, archive_entry_pathname(entry));
+            date_add_file(iso_date_from_time(archive_entry_mtime(entry)),
+                archive_entry_pathname(entry));
         }
     }
     show_all_dates();
