@@ -76,16 +76,13 @@ static void date_add_file(const char *date, const char *file)
     struct dateinfo *dateinfo;
     char *file_copy;
 
-    if (strlen(date) >= DATE_SIZE) {
-        panic("cannot happen");
-    }
     if (ndates >= MAX_DATES) {
         panic("too many dates");
     }
     if (!(dateinfo
             = bsearch(date, dates, ndates, sizeof(*dates), compare_dates))) {
         dateinfo = &dates[ndates++];
-        memcpy(dateinfo->date, date, DATE_SIZE);
+        snprintf(dateinfo->date, sizeof(dateinfo->date), "%s", date);
         dateinfo->files = string_vector_new();
         qsort(dates, ndates, sizeof(*dates), compare_dates);
     }
