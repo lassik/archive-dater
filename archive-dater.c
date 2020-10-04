@@ -125,15 +125,18 @@ static void date_add_file(char *date, const char *const_file)
 static void show_all_dates(void)
 {
     struct dateinfo *dateinfo;
+    struct dateinfo *first;
     char **filep;
     char *file;
 
-    for (dateinfo = dates; dateinfo < dates + ndates; dateinfo++) {
+    for (dateinfo = first = dates; dateinfo < dates + ndates; dateinfo++) {
+        if (dateinfo != first) {
+            printf("\n");
+        }
         printf("%s\n", dateinfo->date);
         for (filep = dateinfo->files; (file = *filep); filep++) {
             printf("* %s\n", file);
         }
-        printf("\n");
     }
 }
 
