@@ -17,6 +17,14 @@ static void panic(const char *msg)
 
 static void panic_memory(void) { panic("out of memory"); }
 
+static int compare_strings(const void *a_void, const void *b_void)
+{
+    const char *a = a_void;
+    const char *b = b_void;
+
+    return strcmp(a, b);
+}
+
 static size_t string_vector_length(char **sv)
 {
     size_t n = 0;
@@ -36,7 +44,7 @@ static char **string_vector_new(void)
     return sv;
 }
 
-static char **string_vector_append(char **sv, char *s)
+static char **string_vector_add_and_sort(char **sv, char *s)
 {
     size_t len = string_vector_length(sv);
     size_t cap = 1;
@@ -49,6 +57,7 @@ static char **string_vector_append(char **sv, char *s)
     }
     sv[len++] = s;
     sv[len] = 0;
+    qsort(sv, len, sizeof(*sv), compare_strings);
     return sv;
 }
 
@@ -119,7 +128,7 @@ static void date_add_file(char *date, const char *const_file)
     if (!(file = strdup(const_file))) {
         panic_memory();
     }
-    dateinfo->files = string_vector_append(dateinfo->files, file);
+    dateinfo->files = string_vector_add_and_sort(dateinfo->files, file);
 }
 
 static void show_all_dates(void)
