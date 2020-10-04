@@ -79,8 +79,8 @@ static void date_add_file(const char *date, const char *file)
     if (ndates >= MAX_DATES) {
         panic("too many dates");
     }
-    if (!(dateinfo
-            = bsearch(date, dates, ndates, sizeof(*dates), compare_dates))) {
+    dateinfo = bsearch(date, dates, ndates, sizeof(*dates), compare_dates);
+    if (!dateinfo) {
         dateinfo = &dates[ndates++];
         snprintf(dateinfo->date, sizeof(dateinfo->date), "%s", date);
         dateinfo->files = string_vector_new();
